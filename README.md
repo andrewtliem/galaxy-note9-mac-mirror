@@ -1,12 +1,12 @@
-# PresentationMouse / PointerPad
+# PresentationMouse / PointerPad ✨
 
-Turn your old Samsung Note 9 into a powerful presentation companion for macOS. Use the S Pen as a wireless mouse and drawing tablet, annotate slides live, and keep your audience focused without buying new hardware.
+Turn your old Samsung Note 9 into a powerful presentation companion for macOS. Use the S Pen as a wireless mouse and drawing tablet, annotate slides live, and keep your audience focused without buying new hardware. 🎯✍️
 
-## What you get
+## What you get ✅
 - Android app (`android/`) that sends pointer/mouse events and drawing strokes over Wi‑Fi.
 - macOS UDP server + viewer (`mac/MacPointerServer/`) that receives events, drives the macOS cursor, and shows a live drawing window.
 
-## How to run
+## How to run 🚀
 
 ### 1) macOS server + viewer
 1. Open a terminal in `mac/MacPointerServer`.
@@ -63,23 +63,23 @@ You need JDK 17, Android SDK command‑line tools (including `sdkmanager`), and 
 - Move/Resize Image: toggle in app to reposition and resize pasted images (drag the corner handle)
 - Optional: “Mirror to apps” sends strokes as mouse drag events so you can draw inside other apps too.
 
-## Image paste (Mac → Phone)
+## Image paste (Mac → Phone) 🖼️➡️📱
 - In the Mac viewer window, press `Cmd+V` to paste an image.
 - The image appears in the Mac viewer and is sent to the phone.
 - Images are resized for faster transfer and can be moved/resized on either device.
 
-## macOS viewer example
+## macOS viewer example 🖥️
 <p align="center">
   <img src="docs/macos-viewer.png" alt="macOS viewer" width="720" />
 </p>
 
-## Android app example
+## Android app example 📱
 <p align="center">
   <img src="docs/android-preview1.jpeg" alt="Android app (tools open)" width="260" />
   <img src="docs/android-preview2.jpeg" alt="Android app (tools collapsed)" width="260" />
 </p>
 
-## Notes
+## Notes ⚠️
 - Both devices must be on the same Wi‑Fi network.
 - This is best‑effort UDP (no encryption). Use a token to reduce accidental input.
 - Stylus pressure/tilt is not transmitted; it behaves like a mouse drag.
