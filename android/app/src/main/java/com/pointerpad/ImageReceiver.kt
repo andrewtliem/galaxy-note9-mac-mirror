@@ -10,6 +10,9 @@ class ImageReceiver(
     private val port: Int = 50506,
     private val onImage: (ImagePacket) -> Unit
 ) {
+    private val maxHeaderBytes = 16 * 1024
+    private val maxImageBytes = 10 * 1024 * 1024
+
     data class ImagePacket(
         val id: String,
         val token: String,
@@ -36,11 +39,17 @@ class ImageReceiver(
                     try {
                         val input = DataInputStream(socket.getInputStream())
                         val headerLen = input.readInt()
+                        if (headerLen <= 0 || headerLen > maxHeaderBytes) {
+                            continue
+                        }
                         val headerBytes = ByteArray(headerLen)
                         input.readFully(headerBytes)
                         val header = JSONObject(String(headerBytes, Charsets.UTF_8))
 
                         val imageLen = input.readInt()
+                        if (imageLen <= 0 || imageLen > maxImageBytes) {
+                            continue
+                        }
                         val imageBytes = ByteArray(imageLen)
                         input.readFully(imageBytes)
 

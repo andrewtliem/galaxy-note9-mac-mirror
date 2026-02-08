@@ -72,6 +72,7 @@ You need JDK 17, Android SDK command‑line tools (including `sdkmanager`), and 
 - Both devices must be on the same Wi‑Fi network.
 - This is best‑effort UDP (no encryption). Use a token to reduce accidental input.
 - Stylus pressure/tilt is not transmitted; it behaves like a mouse drag.
+- The Android image receiver caps incoming images at 10 MB for safety.
 
 ## macOS server options
 - `--port 50505`
