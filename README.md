@@ -68,6 +68,9 @@ You need JDK 17, Android SDK command‑line tools (including `sdkmanager`), and 
 - The image appears in the Mac viewer and is sent to the phone.
 - Images are resized for faster transfer and can be moved/resized on either device.
 
+## macOS viewer example
+![macOS viewer](docs/macos-viewer.png)
+
 ## Notes
 - Both devices must be on the same Wi‑Fi network.
 - This is best‑effort UDP (no encryption). Use a token to reduce accidental input.
