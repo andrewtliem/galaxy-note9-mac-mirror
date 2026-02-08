@@ -1,1 +1,3 @@
 mac/MacPointerServer/.build/
+android/**/build/
+.DS_Store
