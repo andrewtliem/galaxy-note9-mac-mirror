@@ -3098,6 +3098,7 @@ id compress
 id confirm_button
 id connectButton
 id connectionHeader
+id connectionSection
 id container
 id content
 id contentPanel
@@ -3134,6 +3135,7 @@ id dragRight
 id dragStart
 id dragUp
 id drawingPad
+id drawingToolsPanel
 id drawingToolsSection
 id dropdown_menu
 id easeIn
@@ -3432,9 +3434,12 @@ id title
 id titleDividerNoCustom
 id title_template
 id toggle
+id toggleRow
 id tokenInput
 id tokenLayout
+id toolsChevron
 id toolsHeader
+id toolsHeaderRow
 id top
 id topPanel
 id touch_outside

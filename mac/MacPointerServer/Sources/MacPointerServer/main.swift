@@ -12,6 +12,7 @@ struct Config {
     let invertY: Bool
     let imagePort: UInt16
     let imageMaxSize: CGFloat
+    let controlPort: UInt16
 }
 
 final class ClientRegistry {
@@ -111,13 +112,19 @@ final class DrawingView: NSView {
         var points: [CGPoint]
     }
 
+    private enum ImageDragMode {
+        case none
+        case move
+        case resize
+    }
+
     struct ImageLayer {
         let id: String
         let image: NSImage
         var x: CGFloat
         var y: CGFloat
-        let width: CGFloat
-        let height: CGFloat
+        var width: CGFloat
+        var height: CGFloat
     }
 
     private var strokes: [Stroke] = []
@@ -127,6 +134,15 @@ final class DrawingView: NSView {
     private var viewOffset = CGPoint.zero
     private var viewScale: CGFloat = 1.0
     private var sourceSize = CGSize.zero
+    private var activeImageIndex: Int?
+    private var activeImageMode: ImageDragMode = .none
+    private var imageGrabOffset = CGPoint.zero
+
+    private let imageHandleSize: CGFloat = 16
+    private let minImageSize: CGFloat = 32
+
+    var onImageMove: ((String, CGFloat, CGFloat) -> Void)?
+    var onImageResize: ((String, CGFloat, CGFloat) -> Void)?
 
     override var isFlipped: Bool { true }
 
@@ -188,6 +204,13 @@ final class DrawingView: NSView {
         needsDisplay = true
     }
 
+    func resizeImage(id: String, width: CGFloat, height: CGFloat) {
+        guard let index = imageIndex[id] else { return }
+        images[index].width = max(1, width)
+        images[index].height = max(1, height)
+        needsDisplay = true
+    }
+
     func updateView(offset: CGPoint, scale: CGFloat, sourceSize: CGSize) {
         self.viewOffset = offset
         self.viewScale = max(0.01, scale)
@@ -224,18 +247,27 @@ final class DrawingView: NSView {
         NSColor.white.setFill()
         dirtyRect.fill()
 
-        let srcWidth = max(sourceSize.width, 1)
-        let srcHeight = max(sourceSize.height, 1)
-        let scaleX = bounds.width / srcWidth
-        let scaleY = bounds.height / srcHeight
-        let widthScale = (scaleX + scaleY) / 2.0
+        let transform = viewTransform()
+        let scale = transform.scale
+        let widthScale = scale
 
         for image in images {
-            let topLeft = worldToScreen(CGPoint(x: image.x, y: image.y), scaleX: scaleX, scaleY: scaleY)
-            let w = image.width * viewScale * scaleX
-            let h = image.height * viewScale * scaleY
+            let topLeft = worldToScreen(CGPoint(x: image.x, y: image.y), transform: transform)
+            let w = image.width * viewScale * scale
+            let h = image.height * viewScale * scale
             let rect = NSRect(x: topLeft.x, y: topLeft.y, width: w, height: h)
             image.image.draw(in: rect)
+
+            let handleRect = NSRect(
+                x: rect.maxX - imageHandleSize,
+                y: rect.maxY - imageHandleSize,
+                width: imageHandleSize,
+                height: imageHandleSize
+            )
+            NSColor.black.withAlphaComponent(0.6).setFill()
+            handleRect.fill()
+            NSColor.white.setStroke()
+            NSBezierPath(rect: handleRect).stroke()
         }
 
         for stroke in strokes {
@@ -246,19 +278,105 @@ final class DrawingView: NSView {
             path.lineCapStyle = .round
             path.lineJoinStyle = .round
 
-            let first = worldToScreen(stroke.points[0], scaleX: scaleX, scaleY: scaleY)
+            let first = worldToScreen(stroke.points[0], transform: transform)
             path.move(to: first)
             for p in stroke.points.dropFirst() {
-                path.line(to: worldToScreen(p, scaleX: scaleX, scaleY: scaleY))
+                path.line(to: worldToScreen(p, transform: transform))
             }
             stroke.color.setStroke()
             path.stroke()
         }
     }
 
-    private func worldToScreen(_ point: CGPoint, scaleX: CGFloat, scaleY: CGFloat) -> CGPoint {
-        let x = (point.x - viewOffset.x) * viewScale * scaleX
-        let y = (point.y - viewOffset.y) * viewScale * scaleY
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let transform = viewTransform()
+        if let (index, mode) = hitTestImage(at: point, transform: transform) {
+            activeImageIndex = index
+            activeImageMode = mode
+            let world = screenToWorld(point, transform: transform)
+            imageGrabOffset = CGPoint(x: world.x - images[index].x, y: world.y - images[index].y)
+        } else {
+            activeImageIndex = nil
+            activeImageMode = .none
+        }
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let index = activeImageIndex else { return }
+        let point = convert(event.locationInWindow, from: nil)
+        let transform = viewTransform()
+        let world = screenToWorld(point, transform: transform)
+        switch activeImageMode {
+        case .move:
+            images[index].x = world.x - imageGrabOffset.x
+            images[index].y = world.y - imageGrabOffset.y
+            onImageMove?(images[index].id, images[index].x, images[index].y)
+        case .resize:
+            let minWorldW = minImageSize / (viewScale * transform.scale)
+            let minWorldH = minImageSize / (viewScale * transform.scale)
+            images[index].width = max(minWorldW, world.x - images[index].x)
+            images[index].height = max(minWorldH, world.y - images[index].y)
+            onImageResize?(images[index].id, images[index].width, images[index].height)
+        case .none:
+            break
+        }
+        needsDisplay = true
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        activeImageIndex = nil
+        activeImageMode = .none
+    }
+
+    private struct ViewTransform {
+        let scale: CGFloat
+        let padX: CGFloat
+        let padY: CGFloat
+    }
+
+    private func viewTransform() -> ViewTransform {
+        let srcWidth = max(sourceSize.width, 1)
+        let srcHeight = max(sourceSize.height, 1)
+        let scale = min(bounds.width / srcWidth, bounds.height / srcHeight)
+        let padX = (bounds.width - srcWidth * scale) / 2.0
+        let padY = (bounds.height - srcHeight * scale) / 2.0
+        return ViewTransform(scale: scale, padX: padX, padY: padY)
+    }
+
+    private func screenToWorld(_ point: CGPoint, transform: ViewTransform) -> CGPoint {
+        let x = (point.x - transform.padX) / (viewScale * transform.scale) + viewOffset.x
+        let y = (point.y - transform.padY) / (viewScale * transform.scale) + viewOffset.y
+        return CGPoint(x: x, y: y)
+    }
+
+    private func imageScreenRect(_ image: ImageLayer, transform: ViewTransform) -> NSRect {
+        let topLeft = worldToScreen(CGPoint(x: image.x, y: image.y), transform: transform)
+        let w = image.width * viewScale * transform.scale
+        let h = image.height * viewScale * transform.scale
+        return NSRect(x: topLeft.x, y: topLeft.y, width: w, height: h)
+    }
+
+    private func hitTestImage(at point: CGPoint, transform: ViewTransform) -> (Int, ImageDragMode)? {
+        guard !images.isEmpty else { return nil }
+        for index in stride(from: images.count - 1, through: 0, by: -1) {
+            let rect = imageScreenRect(images[index], transform: transform)
+            guard rect.contains(point) else { continue }
+            let handleRect = NSRect(
+                x: rect.maxX - imageHandleSize,
+                y: rect.maxY - imageHandleSize,
+                width: imageHandleSize,
+                height: imageHandleSize
+            )
+            let mode: ImageDragMode = handleRect.contains(point) ? .resize : .move
+            return (index, mode)
+        }
+        return nil
+    }
+
+    private func worldToScreen(_ point: CGPoint, transform: ViewTransform) -> CGPoint {
+        let x = (point.x - viewOffset.x) * viewScale * transform.scale + transform.padX
+        let y = (point.y - viewOffset.y) * viewScale * transform.scale + transform.padY
         return CGPoint(x: x, y: y)
     }
 }
@@ -352,6 +470,29 @@ final class ImageSender {
         }
 
         connection.start(queue: queue)
+    }
+}
+
+final class ControlSender {
+    private let port: UInt16
+    private let queue = DispatchQueue(label: "pointerpad.control.send")
+
+    init(port: UInt16) {
+        self.port = port
+    }
+
+    func send(type: String, payload: [String: Any], to host: String, token: String) {
+        guard let port = NWEndpoint.Port(rawValue: port) else { return }
+        var dict = payload
+        dict["type"] = type
+        dict["token"] = token
+        guard let data = try? JSONSerialization.data(withJSONObject: dict, options: []) else { return }
+
+        let connection = NWConnection(host: NWEndpoint.Host(host), port: port, using: .udp)
+        connection.start(queue: queue)
+        connection.send(content: data, completion: .contentProcessed { _ in
+            connection.cancel()
+        })
     }
 }
 
@@ -456,7 +597,7 @@ final class UdpServer {
                 print("Scroll from \(endpoint): dx=\(dx) dy=\(dy)")
             }
             mouse.scroll(dx: dx, dy: dy)
-        case "draw_begin", "draw_move", "draw_end", "draw_undo", "draw_clear", "draw_erase", "draw_view", "image_move":
+        case "draw_begin", "draw_move", "draw_end", "draw_undo", "draw_clear", "draw_erase", "draw_view", "image_move", "image_resize":
             handleDraw(type: type, dict: dict)
         default:
             if config.verbose {
@@ -499,6 +640,12 @@ final class UdpServer {
                 let y = dict["y"] as? Double ?? 0
                 self.drawingView.moveImage(id: id, x: CGFloat(x), y: CGFloat(y))
                 return
+            case "image_resize":
+                let id = String(describing: dict["id"] ?? "")
+                let w = dict["width"] as? Double ?? 1
+                let h = dict["height"] as? Double ?? 1
+                self.drawingView.resizeImage(id: id, width: CGFloat(w), height: CGFloat(h))
+                return
             default:
                 break
             }
@@ -525,15 +672,17 @@ final class UdpServer {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let drawingView: DrawingView
     private let imageSender: ImageSender
+    private let controlSender: ControlSender
     private var window: NSWindow?
     private let clientRegistry: ClientRegistry
     private var token: String
     private let verbose: Bool
     private var keyMonitor: Any?
 
-    init(drawingView: DrawingView, imageSender: ImageSender, clientRegistry: ClientRegistry, token: String, verbose: Bool) {
+    init(drawingView: DrawingView, imageSender: ImageSender, controlSender: ControlSender, clientRegistry: ClientRegistry, token: String, verbose: Bool) {
         self.drawingView = drawingView
         self.imageSender = imageSender
+        self.controlSender = controlSender
         self.clientRegistry = clientRegistry
         self.token = token
         self.verbose = verbose
@@ -560,6 +709,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appItem.submenu?.addItem(pasteItem)
         menu.addItem(appItem)
         NSApp.mainMenu = menu
+
+        drawingView.onImageMove = { [weak self] id, x, y in
+            self?.sendControl(type: "image_move", payload: ["id": id, "x": x, "y": y])
+        }
+        drawingView.onImageResize = { [weak self] id, width, height in
+            self?.sendControl(type: "image_resize", payload: ["id": id, "width": width, "height": height])
+        }
 
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self else { return event }
@@ -652,6 +808,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         return NSImage(contentsOf: url)
     }
+
+    private func sendControl(type: String, payload: [String: Any]) {
+        guard let host = clientRegistry.getHost() else { return }
+        controlSender.send(type: type, payload: payload, to: host, token: token)
+    }
 }
 
 func parseConfig() -> Config {
@@ -663,6 +824,7 @@ func parseConfig() -> Config {
     var invertY = false
     var imagePort: UInt16 = 50506
     var imageMaxSize: CGFloat = 1600
+    var controlPort: UInt16 = 50507
 
     let args = CommandLine.arguments
     var i = 1
@@ -684,6 +846,8 @@ func parseConfig() -> Config {
             if i + 1 < args.count { imagePort = UInt16(args[i + 1]) ?? imagePort; i += 1 }
         case "--image-max":
             if i + 1 < args.count { imageMaxSize = CGFloat(Double(args[i + 1]) ?? Double(imageMaxSize)); i += 1 }
+        case "--control-port":
+            if i + 1 < args.count { controlPort = UInt16(args[i + 1]) ?? controlPort; i += 1 }
         default:
             break
         }
@@ -694,7 +858,17 @@ func parseConfig() -> Config {
         token = ProcessInfo.processInfo.environment["POINTER_TOKEN"] ?? ""
     }
 
-    return Config(port: port, token: token, sensitivity: sensitivity, verbose: verbose, useWarp: useWarp, invertY: invertY, imagePort: imagePort, imageMaxSize: imageMaxSize)
+    return Config(
+        port: port,
+        token: token,
+        sensitivity: sensitivity,
+        verbose: verbose,
+        useWarp: useWarp,
+        invertY: invertY,
+        imagePort: imagePort,
+        imageMaxSize: imageMaxSize,
+        controlPort: controlPort
+    )
 }
 
 func nsColor(from argb: Int) -> NSColor {
@@ -710,7 +884,8 @@ let drawingView = DrawingView(frame: NSRect(x: 0, y: 0, width: 900, height: 600)
 let clientRegistry = ClientRegistry()
 let server = UdpServer(config: config, drawingView: drawingView, clientRegistry: clientRegistry)
 let imageSender = ImageSender(port: config.imagePort, maxSize: config.imageMaxSize)
-let delegate = AppDelegate(drawingView: drawingView, imageSender: imageSender, clientRegistry: clientRegistry, token: config.token, verbose: config.verbose)
+let controlSender = ControlSender(port: config.controlPort)
+let delegate = AppDelegate(drawingView: drawingView, imageSender: imageSender, controlSender: controlSender, clientRegistry: clientRegistry, token: config.token, verbose: config.verbose)
 
 let app = NSApplication.shared
 app.setActivationPolicy(.regular)

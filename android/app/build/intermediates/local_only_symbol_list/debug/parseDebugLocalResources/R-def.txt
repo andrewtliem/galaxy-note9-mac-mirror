@@ -12,7 +12,9 @@ id clearButton
 id colorRow
 id connectButton
 id connectionHeader
+id connectionSection
 id drawingPad
+id drawingToolsPanel
 id drawingToolsSection
 id eraserToggle
 id helpText
@@ -35,9 +37,12 @@ id swatchBlue
 id swatchGreen
 id swatchRed
 id testButton
+id toggleRow
 id tokenInput
 id tokenLayout
+id toolsChevron
 id toolsHeader
+id toolsHeaderRow
 id undoButton
 layout activity_main
 string app_name

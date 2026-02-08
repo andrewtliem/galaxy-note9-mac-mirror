@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
 import android.view.View
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
@@ -21,6 +22,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sender: UdpSender
     private var connected = false
     private var imageReceiver: ImageReceiver? = null
+    private var controlReceiver: ControlReceiver? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,6 +36,8 @@ class MainActivity : AppCompatActivity() {
         val tokenInput = findViewById<TextInputEditText>(R.id.tokenInput)
         val connectButton = findViewById<MaterialButton>(R.id.connectButton)
         val testButton = findViewById<MaterialButton>(R.id.testButton)
+        val connectionSection = findViewById<View>(R.id.connectionSection)
+        val statusRow = findViewById<View>(R.id.statusRow)
         val statusDot = findViewById<View>(R.id.statusDot)
         val statusText = findViewById<TextView>(R.id.statusText)
         val modeToggle = findViewById<SwitchCompat>(R.id.modeToggle)
@@ -41,6 +45,9 @@ class MainActivity : AppCompatActivity() {
         val imageMoveToggle = findViewById<SwitchCompat>(R.id.imageMoveToggle)
         val mirrorToggle = findViewById<SwitchCompat>(R.id.mirrorToggle)
         val stylusToggle = findViewById<SwitchCompat>(R.id.stylusToggle)
+        val toolsHeaderRow = findViewById<View>(R.id.toolsHeaderRow)
+        val toolsChevron = findViewById<ImageView>(R.id.toolsChevron)
+        val toolsPanel = findViewById<View>(R.id.drawingToolsPanel)
         val pointerPad = findViewById<PointerPadView>(R.id.pointerPad)
         val drawingPad = findViewById<DrawingPadView>(R.id.drawingPad)
         val mouseToolsSection = findViewById<View>(R.id.mouseToolsSection)
@@ -70,6 +77,27 @@ class MainActivity : AppCompatActivity() {
         }
         imageReceiver?.start()
 
+        controlReceiver = ControlReceiver(50507) { json ->
+            if (sender.token.isNotEmpty() && json.optString("token", "") != sender.token) {
+                return@ControlReceiver
+            }
+            when (json.optString("type", "")) {
+                "image_move" -> {
+                    val id = json.optString("id", "")
+                    val x = json.optDouble("x", 0.0).toFloat()
+                    val y = json.optDouble("y", 0.0).toFloat()
+                    runOnUiThread { drawingPad.moveImage(id, x, y) }
+                }
+                "image_resize" -> {
+                    val id = json.optString("id", "")
+                    val w = json.optDouble("width", 1.0).toFloat()
+                    val h = json.optDouble("height", 1.0).toFloat()
+                    runOnUiThread { drawingPad.resizeImage(id, w, h) }
+                }
+            }
+        }
+        controlReceiver?.start()
+
         val prefs = getSharedPreferences("pointerpad", MODE_PRIVATE)
         ipInput.setText(prefs.getString("host", ""))
         tokenInput.setText(prefs.getString("token", ""))
@@ -89,7 +117,14 @@ class MainActivity : AppCompatActivity() {
 
         applyMode(modeToggle.isChecked, pointerPad, drawingPad, mouseToolsSection, drawingToolsSection, helpText)
         updateStatus(statusDot, statusText, Status.IDLE, null)
-        setConnected(false, connectButton, testButton, eraserToggle, imageMoveToggle, mirrorToggle)
+        setConnected(false, connectButton, testButton, eraserToggle, imageMoveToggle, mirrorToggle, connectionSection)
+        setToolsExpanded(false, toolsPanel, toolsChevron)
+
+        statusRow.setOnClickListener {
+            if (!connected) return@setOnClickListener
+            val show = connectionSection.visibility != View.VISIBLE
+            connectionSection.visibility = if (show) View.VISIBLE else View.GONE
+        }
 
         connectButton.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -98,7 +133,7 @@ class MainActivity : AppCompatActivity() {
 
             if (connected) {
                 sender.updateTarget("", 50505)
-                setConnected(false, connectButton, testButton, eraserToggle, imageMoveToggle, mirrorToggle)
+                setConnected(false, connectButton, testButton, eraserToggle, imageMoveToggle, mirrorToggle, connectionSection)
                 updateStatus(statusDot, statusText, Status.IDLE, null)
                 return@setOnClickListener
             }
@@ -120,7 +155,7 @@ class MainActivity : AppCompatActivity() {
                 .putString("token", token)
                 .apply()
 
-            setConnected(true, connectButton, testButton, eraserToggle, imageMoveToggle, mirrorToggle)
+            setConnected(true, connectButton, testButton, eraserToggle, imageMoveToggle, mirrorToggle, connectionSection)
             updateStatus(statusDot, statusText, Status.READY, host)
         }
 
@@ -146,22 +181,42 @@ class MainActivity : AppCompatActivity() {
         eraserToggle.setOnCheckedChangeListener { _, isChecked ->
             drawingPad.setEraserEnabled(isChecked)
             prefs.edit().putBoolean("eraser_mode", isChecked).apply()
+            setToolsExpanded(false, toolsPanel, toolsChevron)
         }
 
         imageMoveToggle.setOnCheckedChangeListener { _, isChecked ->
             drawingPad.setImageMoveEnabled(isChecked)
             prefs.edit().putBoolean("image_move", isChecked).apply()
+            setToolsExpanded(false, toolsPanel, toolsChevron)
         }
 
         mirrorToggle.setOnCheckedChangeListener { _, isChecked ->
             drawingPad.setMirrorMouseEnabled(isChecked)
             prefs.edit().putBoolean("mirror_mouse", isChecked).apply()
+            setToolsExpanded(false, toolsPanel, toolsChevron)
         }
 
-        swatchBlack.setOnClickListener { setInkColor(ContextCompat.getColor(this, R.color.ink_black), drawingPad, swatchBlack, swatchRed, swatchBlue, swatchGreen, prefs) }
-        swatchRed.setOnClickListener { setInkColor(ContextCompat.getColor(this, R.color.ink_red), drawingPad, swatchBlack, swatchRed, swatchBlue, swatchGreen, prefs) }
-        swatchBlue.setOnClickListener { setInkColor(ContextCompat.getColor(this, R.color.ink_blue), drawingPad, swatchBlack, swatchRed, swatchBlue, swatchGreen, prefs) }
-        swatchGreen.setOnClickListener { setInkColor(ContextCompat.getColor(this, R.color.ink_green), drawingPad, swatchBlack, swatchRed, swatchBlue, swatchGreen, prefs) }
+        toolsHeaderRow.setOnClickListener {
+            val expanded = toolsPanel.visibility != View.VISIBLE
+            setToolsExpanded(expanded, toolsPanel, toolsChevron)
+        }
+
+        swatchBlack.setOnClickListener {
+            setInkColor(ContextCompat.getColor(this, R.color.ink_black), drawingPad, swatchBlack, swatchRed, swatchBlue, swatchGreen, prefs)
+            setToolsExpanded(false, toolsPanel, toolsChevron)
+        }
+        swatchRed.setOnClickListener {
+            setInkColor(ContextCompat.getColor(this, R.color.ink_red), drawingPad, swatchBlack, swatchRed, swatchBlue, swatchGreen, prefs)
+            setToolsExpanded(false, toolsPanel, toolsChevron)
+        }
+        swatchBlue.setOnClickListener {
+            setInkColor(ContextCompat.getColor(this, R.color.ink_blue), drawingPad, swatchBlack, swatchRed, swatchBlue, swatchGreen, prefs)
+            setToolsExpanded(false, toolsPanel, toolsChevron)
+        }
+        swatchGreen.setOnClickListener {
+            setInkColor(ContextCompat.getColor(this, R.color.ink_green), drawingPad, swatchBlack, swatchRed, swatchBlue, swatchGreen, prefs)
+            setToolsExpanded(false, toolsPanel, toolsChevron)
+        }
 
         leftClickButton.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -175,15 +230,18 @@ class MainActivity : AppCompatActivity() {
         undoButton.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             drawingPad.undo()
+            setToolsExpanded(false, toolsPanel, toolsChevron)
         }
         clearButton.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
             drawingPad.clear()
+            setToolsExpanded(false, toolsPanel, toolsChevron)
         }
     }
 
     override fun onDestroy() {
         imageReceiver?.stop()
+        controlReceiver?.stop()
         sender.close()
         super.onDestroy()
     }
@@ -201,7 +259,7 @@ class MainActivity : AppCompatActivity() {
             drawingPad.visibility = View.VISIBLE
             mouseToolsSection.visibility = View.GONE
             drawingToolsSection.visibility = View.VISIBLE
-            helpText.text = "Draw: stylus. Pan: one finger. Zoom: two fingers. Move image: toggle."
+            helpText.text = "Draw: stylus. Pan: one finger. Zoom: two fingers. Move/resize image: toggle."
         } else {
             pointerPad.visibility = View.VISIBLE
             drawingPad.visibility = View.GONE
@@ -217,7 +275,8 @@ class MainActivity : AppCompatActivity() {
         testButton: MaterialButton,
         eraserToggle: SwitchCompat,
         imageMoveToggle: SwitchCompat,
-        mirrorToggle: SwitchCompat
+        mirrorToggle: SwitchCompat,
+        connectionSection: View
     ) {
         connected = isConnected
         connectButton.text = if (isConnected) "Disconnect" else "Connect"
@@ -225,6 +284,14 @@ class MainActivity : AppCompatActivity() {
         eraserToggle.isEnabled = isConnected
         imageMoveToggle.isEnabled = isConnected
         mirrorToggle.isEnabled = isConnected
+        connectionSection.visibility = if (isConnected) View.GONE else View.VISIBLE
+    }
+
+    private fun setToolsExpanded(expanded: Boolean, panel: View, chevron: ImageView) {
+        panel.visibility = if (expanded) View.VISIBLE else View.GONE
+        chevron.setImageResource(
+            if (expanded) android.R.drawable.arrow_up_float else android.R.drawable.arrow_down_float
+        )
     }
 
     private fun setInkColor(

@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PointF
+import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
@@ -32,9 +33,15 @@ class DrawingPadView @JvmOverloads constructor(
         val bitmap: Bitmap,
         var x: Float,
         var y: Float,
-        val width: Float,
-        val height: Float
+        var width: Float,
+        var height: Float
     )
+
+    private enum class ImageAction {
+        NONE,
+        MOVE,
+        RESIZE
+    }
 
     private var sender: UdpSender? = null
     private var token: String = ""
@@ -49,6 +56,7 @@ class DrawingPadView @JvmOverloads constructor(
     private val images = mutableListOf<ImageLayer>()
     private var activeStroke: Stroke? = null
     private var activeImage: ImageLayer? = null
+    private var activeImageAction = ImageAction.NONE
     private var imageGrabDx = 0f
     private var imageGrabDy = 0f
     private var lastMirrorX = 0f
@@ -81,6 +89,17 @@ class DrawingPadView @JvmOverloads constructor(
         textAlign = Paint.Align.CENTER
     }
     private val baseGridSpacing = 120f
+    private val imageHandleSizePx = 24f
+    private val minImageSizePx = 64f
+    private val handleFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.parseColor("#CC000000")
+    }
+    private val handleStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+        color = Color.WHITE
+    }
 
     fun setSender(sender: UdpSender) {
         this.sender = sender
@@ -118,6 +137,13 @@ class DrawingPadView @JvmOverloads constructor(
         invalidate()
     }
 
+    fun resizeImage(id: String, width: Float, height: Float) {
+        val img = images.firstOrNull { it.id == id } ?: return
+        img.width = max(1f, width)
+        img.height = max(1f, height)
+        invalidate()
+    }
+
     fun undo() {
         if (strokes.isNotEmpty()) {
             strokes.removeLast()
@@ -152,6 +178,17 @@ class DrawingPadView @JvmOverloads constructor(
             val right = topLeft.x + w
             val bottom = topLeft.y + h
             canvas.drawBitmap(image.bitmap, null, android.graphics.RectF(topLeft.x, topLeft.y, right, bottom), null)
+
+            if (imageMoveEnabled) {
+                val handle = RectF(
+                    right - imageHandleSizePx,
+                    bottom - imageHandleSizePx,
+                    right,
+                    bottom
+                )
+                canvas.drawRect(handle, handleFillPaint)
+                canvas.drawRect(handle, handleStrokePaint)
+            }
         }
 
         for (stroke in strokes) {
@@ -262,39 +299,63 @@ class DrawingPadView @JvmOverloads constructor(
         val world = screenToWorld(x, y)
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                val hit = hitTestImage(world)
+                val hit = hitTestImage(screenX = x, screenY = y)
                 if (hit != null) {
-                    activeImage = hit
-                    imageGrabDx = world.x - hit.x
-                    imageGrabDy = world.y - hit.y
+                    val (img, resizing) = hit
+                    activeImage = img
+                    activeImageAction = if (resizing) ImageAction.RESIZE else ImageAction.MOVE
+                    imageGrabDx = world.x - img.x
+                    imageGrabDy = world.y - img.y
                     return true
                 }
             }
             MotionEvent.ACTION_MOVE -> {
                 val img = activeImage ?: return false
-                img.x = world.x - imageGrabDx
-                img.y = world.y - imageGrabDy
-                sendImageMove(img)
+                if (activeImageAction == ImageAction.RESIZE) {
+                    val minWorldW = minImageSizePx / viewScale
+                    val minWorldH = minImageSizePx / viewScale
+                    img.width = max(minWorldW, world.x - img.x)
+                    img.height = max(minWorldH, world.y - img.y)
+                    sendImageResize(img)
+                } else {
+                    img.x = world.x - imageGrabDx
+                    img.y = world.y - imageGrabDy
+                    sendImageMove(img)
+                }
                 invalidate()
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 activeImage = null
+                activeImageAction = ImageAction.NONE
             }
         }
         return false
     }
 
-    private fun hitTestImage(world: PointF): ImageLayer? {
+    private fun hitTestImage(screenX: Float, screenY: Float): Pair<ImageLayer, Boolean>? {
         for (i in images.indices.reversed()) {
             val img = images[i]
-            if (world.x >= img.x && world.x <= img.x + img.width &&
-                world.y >= img.y && world.y <= img.y + img.height
-            ) {
-                return img
+            val rect = imageScreenRect(img)
+            if (rect.contains(screenX, screenY)) {
+                val handle = RectF(
+                    rect.right - imageHandleSizePx,
+                    rect.bottom - imageHandleSizePx,
+                    rect.right,
+                    rect.bottom
+                )
+                val resizing = handle.contains(screenX, screenY)
+                return img to resizing
             }
         }
         return null
+    }
+
+    private fun imageScreenRect(img: ImageLayer): RectF {
+        val topLeft = worldToScreen(PointF(img.x, img.y))
+        val w = img.width * viewScale
+        val h = img.height * viewScale
+        return RectF(topLeft.x, topLeft.y, topLeft.x + w, topLeft.y + h)
     }
 
     private fun handleSinglePan(event: MotionEvent, x: Float, y: Float) {
@@ -494,6 +555,16 @@ class DrawingPadView @JvmOverloads constructor(
         obj.put("id", image.id)
         obj.put("x", image.x)
         obj.put("y", image.y)
+        obj.put("token", token)
+        sender?.send(obj)
+    }
+
+    private fun sendImageResize(image: ImageLayer) {
+        val obj = JSONObject()
+        obj.put("type", "image_resize")
+        obj.put("id", image.id)
+        obj.put("width", image.width)
+        obj.put("height", image.height)
         obj.put("token", token)
         sender?.send(obj)
     }

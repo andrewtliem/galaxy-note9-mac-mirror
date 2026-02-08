@@ -60,13 +60,13 @@ You need JDK 17, Android SDK command‑line tools (including `sdkmanager`), and 
 - Undo / Clear supported
 - One finger pan + two-finger zoom for infinite canvas
 - Eraser: toggle in app or hold the S Pen button while drawing
-- Move Image: toggle in app to reposition pasted images
+- Move/Resize Image: toggle in app to reposition and resize pasted images (drag the corner handle)
 - Optional: “Mirror to apps” sends strokes as mouse drag events so you can draw inside other apps too.
 
 ## Image paste (Mac → Phone)
 - In the Mac viewer window, press `Cmd+V` to paste an image.
 - The image appears in the Mac viewer and is sent to the phone.
-- Images are resized for faster transfer and can be moved on the phone (Move Image toggle).
+- Images are resized for faster transfer and can be moved/resized on either device.
 
 ## Notes
 - Both devices must be on the same Wi‑Fi network.
@@ -82,6 +82,7 @@ You need JDK 17, Android SDK command‑line tools (including `sdkmanager`), and 
 - `--invert-y` (invert vertical movement)
 - `--image-port 50506` (TCP port for pasted images)
 - `--image-max 1600` (max image dimension before resize)
+- `--control-port 50507` (UDP control port for image move/resize sync)
 
 Environment variable fallback:
 - `POINTER_TOKEN`
