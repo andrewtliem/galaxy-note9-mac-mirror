@@ -69,7 +69,9 @@ You need JDK 17, Android SDK command‑line tools (including `sdkmanager`), and 
 - Images are resized for faster transfer and can be moved/resized on either device.
 
 ## macOS viewer example
-![macOS viewer](docs/macos-viewer.png)
+<p align="center">
+  <img src="docs/macos-viewer.png" alt="macOS viewer" width="720" />
+</p>
 
 ## Android app example
 <p align="center">
