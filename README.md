@@ -71,6 +71,10 @@ You need JDK 17, Android SDK command‑line tools (including `sdkmanager`), and 
 ## macOS viewer example
 ![macOS viewer](docs/macos-viewer.png)
 
+## Android app example
+![Android app (tools open)](docs/android-preview1.jpeg)
+![Android app (tools collapsed)](docs/android-preview2.jpeg)
+
 ## Notes
 - Both devices must be on the same Wi‑Fi network.
 - This is best‑effort UDP (no encryption). Use a token to reduce accidental input.
