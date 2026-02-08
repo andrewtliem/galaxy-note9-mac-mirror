@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/andrewtannyliem/Documents/PresentationMouse/mac/MacPointerServer/.build/arm64-apple-macosx/debug/MacPointerServer.build/master.swiftdeps"
+  },
+  "/Users/andrewtannyliem/Documents/PresentationMouse/mac/MacPointerServer/Sources/MacPointerServer/main.swift": {
+    "dependencies": "/Users/andrewtannyliem/Documents/PresentationMouse/mac/MacPointerServer/.build/arm64-apple-macosx/debug/MacPointerServer.build/main.d",
+    "object": "/Users/andrewtannyliem/Documents/PresentationMouse/mac/MacPointerServer/.build/arm64-apple-macosx/debug/MacPointerServer.build/main.swift.o",
+    "swiftmodule": "/Users/andrewtannyliem/Documents/PresentationMouse/mac/MacPointerServer/.build/arm64-apple-macosx/debug/MacPointerServer.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Users/andrewtannyliem/Documents/PresentationMouse/mac/MacPointerServer/.build/arm64-apple-macosx/debug/MacPointerServer.build/main.swiftdeps",
+    "diagnostics": "/Users/andrewtannyliem/Documents/PresentationMouse/mac/MacPointerServer/.build/arm64-apple-macosx/debug/MacPointerServer.build/main.dia"
+  }
+}

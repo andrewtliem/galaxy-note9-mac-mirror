@@ -1,0 +1,10 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.PointerPad" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#202124</item>
+        <item name="colorPrimaryVariant">#202124</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#4CAF50</item>
+        <item name="colorOnSecondary">#000000</item>
+        <item name="android:statusBarColor" tools:targetApi="l">#202124</item>
+    </style>
+</resources>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:ns1="http://schemas.android.com/tools">
+    <color name="ink_black">#111111</color>
+    <color name="ink_blue">#1565C0</color>
+    <color name="ink_green">#2E7D32</color>
+    <color name="ink_red">#C62828</color>
+    <string name="app_name">PointerPad</string>
+    <style name="AppShapeCircle">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+    <style name="Theme.PointerPad" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#202124</item>
+        <item name="colorPrimaryVariant">#202124</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#4CAF50</item>
+        <item name="colorOnSecondary">#000000</item>
+        <item name="android:statusBarColor" ns1:targetApi="l">#202124</item>
+    </style>
+</resources>

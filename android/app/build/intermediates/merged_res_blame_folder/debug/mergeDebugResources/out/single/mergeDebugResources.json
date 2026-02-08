@@ -1,0 +1,22 @@
+[
+    {
+        "merged": "/Users/andrewtannyliem/.gradle/daemon/9.3.1/com.pointerpad.app-debug-31:/drawable_ink_swatch_bg.xml.flat",
+        "source": "/Users/andrewtannyliem/.gradle/daemon/9.3.1/com.pointerpad.app-main-33:/drawable/ink_swatch_bg.xml"
+    },
+    {
+        "merged": "/Users/andrewtannyliem/.gradle/daemon/9.3.1/com.pointerpad.app-debug-31:/drawable_canvas_bg.xml.flat",
+        "source": "/Users/andrewtannyliem/.gradle/daemon/9.3.1/com.pointerpad.app-main-33:/drawable/canvas_bg.xml"
+    },
+    {
+        "merged": "com.pointerpad.app-debug-31:/layout_activity_main.xml.flat",
+        "source": "com.pointerpad.app-main-33:/layout/activity_main.xml"
+    },
+    {
+        "merged": "/Users/andrewtannyliem/.gradle/daemon/9.3.1/com.pointerpad.app-debug-31:/drawable_status_dot.xml.flat",
+        "source": "/Users/andrewtannyliem/.gradle/daemon/9.3.1/com.pointerpad.app-main-33:/drawable/status_dot.xml"
+    },
+    {
+        "merged": "/Users/andrewtannyliem/.gradle/daemon/9.3.1/com.pointerpad.app-debug-31:/layout_activity_main.xml.flat",
+        "source": "/Users/andrewtannyliem/.gradle/daemon/9.3.1/com.pointerpad.app-main-33:/layout/activity_main.xml"
+    }
+]
