@@ -1,6 +1,6 @@
 # PresentationMouse / PointerPad
 
-This repo contains a minimal two-part app to use an Android phone (including S Pen) as a wireless mouse/trackpad and drawing tablet for macOS.
+Turn your old Samsung Note 9 into a powerful presentation companion for macOS. Use the S Pen as a wireless mouse and drawing tablet, annotate slides live, and keep your audience focused without buying new hardware.
 
 ## What you get
 - Android app (`android/`) that sends pointer/mouse events and drawing strokes over Wi‑Fi.
