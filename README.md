@@ -72,8 +72,10 @@ You need JDK 17, Android SDK command‑line tools (including `sdkmanager`), and 
 ![macOS viewer](docs/macos-viewer.png)
 
 ## Android app example
-<img src="docs/android-preview1.jpeg" alt="Android app (tools open)" width="360" />
-<img src="docs/android-preview2.jpeg" alt="Android app (tools collapsed)" width="360" />
+<p align="center">
+  <img src="docs/android-preview1.jpeg" alt="Android app (tools open)" width="260" />
+  <img src="docs/android-preview2.jpeg" alt="Android app (tools collapsed)" width="260" />
+</p>
 
 ## Notes
 - Both devices must be on the same Wi‑Fi network.
